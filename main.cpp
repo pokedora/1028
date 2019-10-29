@@ -18,9 +18,15 @@
 #define SET_WINDOW_ST_MODE_TITLE_FLAME_NONE 2
 #define SET_WINDOW_ST_MODE_FLAME_NONE		3
 
-#define GAME_BACKIMAGE_1	"BACKIMAGE\\oruga1.jpg"
-#define GAME_BACKIMAGE_2	
-#define GAME_BACKIMAGE_3 
+#define GAME_BACKIMAGE_1	"BACKIMAGE\\oruga1.jpg"		//タイトル画面背景
+#define GAME_BACKIMAGE_2	"BACKIMAGE\\BackImage2.jpg"	//　プレイ画面背景
+#define GAME_BACKIMAGE_3    "BACKIMAGE\\BackImage3.jpg"  //エンド画面背景
+#define GAME_BACKIMAGE_4    "CHARA\\stop.png"  //エンド画面キャラ
+#define GAME_GOAL			"BACKIMAGE\\Goal.png" //ゴール
+
+#define GAME_CHARA          "CHARA\\player.png"  //プレイヤー表示
+
+
 
 enum GAME_SCENE {
 	GAME_SCENE_TITLE,
@@ -37,12 +43,15 @@ struct STRUCT_GAZOU {
 	int Height;
 	int C_Width;
 	int C_Height;
+	int MoveSpeed;
 };
 
 
 typedef STRUCT_GAZOU GAZOU;
 
 GAZOU	BackGround; //背景の画像
+GAZOU   BackGround2; //背景２の画像
+GAZOU   Goal;		//ゴールの画像
 GAZOU   Player;      //プレイヤーの画像
 
 
@@ -73,7 +82,7 @@ VOID MY_GAME_END(VOID);
 VOID MY_DRAW_STRING_CENTER_CENTER(char[][128], int, char *, int);
 VOID MY_DRAW_SET_DEFAULT_FONT(BOOL);
 
-
+VOID PLAYER_MOVE(GAZOU *);
 
 BOOL MY_GAZOU_LOAD(GAZOU *, int, int, const char*);
 
@@ -97,6 +106,10 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
 	SetDrawScreen(DX_SCREEN_BACK);
 
 	if (MY_GAZOU_LOAD(&BackGround, 0, 0, GAME_BACKIMAGE_1) == FALSE) { MessageBox(NULL, GAME_BACKIMAGE_1, "NotFound", MB_OK); return -1; }
+	if (MY_GAZOU_LOAD(&BackGround2, 0, 0, GAME_BACKIMAGE_2) == FALSE) { MessageBox(NULL, GAME_BACKIMAGE_2, "NotFound", MB_OK); return -1; }
+	if (MY_GAZOU_LOAD(&Goal, 0, 0, GAME_GOAL) == FALSE) { MessageBox(NULL, GAME_GOAL, "NotFound", MB_OK); return -1; }
+	if (MY_GAZOU_LOAD(&Player, 0, 0, GAME_CHARA) == FALSE) { MessageBox(NULL, GAME_CHARA, "NotFound", MB_OK); return -1; }
+
 
 	while (TRUE)
 	{
@@ -223,18 +236,16 @@ VOID MY_GAME_TITLE(VOID)
 		GameSceneNow = (int)GAME_SCENE_PLAY;
 	}
 
-	//DrawGraph(250, 230, BackGround.Handle, FALSE);
-	
-	//BackGround.Handle = DrawGraph(250, 230, BackGround.Handle, FALSE);
 
-	GetGraphSize(BackGround.Handle, &BackGround.X, &BackGround.Y);
+	GetGraphSize(BackGround.Handle, &BackGround.X, &BackGround.Y);  //画像サイズを取得
 
-	DrawExtendGraph(100, 150, 100 + BackGround.X * 2, 150 + BackGround.Y*2, BackGround.Handle, TRUE);
+	DrawExtendGraph(100, 150, 100 + BackGround.X * 2, 150 + BackGround.Y*2, BackGround.Handle, TRUE); //画像表示と拡大
 	
+
 	char StrGameTitle[1][128] = { "Don't Stop" };
 	char StrFontTitle[128] = { "MS ゴシック" };
 	
-	MY_DRAW_STRING_CENTER_CENTER(&StrGameTitle[0], 1, StrFontTitle, 64);
+	MY_DRAW_STRING_CENTER_CENTER(&StrGameTitle[0], 1, StrFontTitle, 64); //画面の中心に描画
 
 
 	DrawString(0, 0, "プレイ画面(スペースキーを押してください)", GetColor(255, 255, 255));
@@ -248,6 +259,22 @@ VOID MY_GAME_PLAY(VOID)
 	{
 		GameSceneNow = (int)GAME_SCENE_END;
 	}
+
+	GetGraphSize(BackGround2.Handle, &BackGround2.X, &BackGround2.Y);  //背景画像サイズを取得
+
+	DrawExtendGraph(0,0, 100 + BackGround2.X * 3, 150 + BackGround2.Y * 2.5, BackGround2.Handle, TRUE); //背景画像表示と拡大
+
+	//SetTransColor(0, 1, 252);  //透過したい色指定
+
+	GetGraphSize(Player.Handle, &Player.X, &Player.Y); //プレイヤーの画像サイズを取得
+
+	DrawExtendGraph(0, 0, 0 + Player.X, 0 + Player.Y, Player.Handle, TRUE); //プレイヤー表示
+
+	GetGraphSize(Goal.Handle, &Goal.X, &Goal.Y); //ゴール画像サイズを取得
+
+	DrawExtendGraph(600, 400,600+Goal.X*1/2,400+Goal.Y*1/2, Goal.Handle, TRUE); //ゴール表示
+
+	PLAYER_MOVE(&Player);
 
 	DrawString(0, 0, "プレイ画面(バックスペースキーを押してください)", GetColor(255, 255, 255));
 }
@@ -280,6 +307,7 @@ BOOL MY_GAZOU_LOAD(GAZOU *g, int x, int y, const char *path)
 	g->Y = y;
 	g->C_Width = g->Width / 2;
 	g->C_Height = g->Height / 2;
+	g->MoveSpeed = 4;
 
 	return TRUE;
 }
@@ -328,6 +356,43 @@ VOID MY_DRAW_SET_DEFAULT_FONT(BOOL anti)
 	}
 	return;
 }
+
+VOID PLAYER_MOVE(GAZOU *Player)
+{
+	if (AllKeyState[KEY_INPUT_UP] != 0)
+	{
+		if (Player.Y - Player.MoveSpeed > 0)
+		{
+			Player.Y -= Player.MoveSpeed;
+		}
+	}
+
+	else if (AllKeyState[KEY_INPUT_DOWN] != 0)
+	{
+		if (Player.Y + Player.Height + Player.MoveSpeed < GAME_HEIGHT)
+		{
+			Player.Y += Player.MoveSpeed;
+		}
+	}
+
+	if (AllKeyState[KEY_INPUT_LEFT] != 0)
+	{
+		if (Player.X - Player.MoveSpeed > 0)
+		{
+			Player.X -= Player.MoveSpeed;
+		}
+	}
+
+	else if (AllKeyState[KEY_INPUT_RIGHT] != 0)
+	{
+		if (Player.X + Player.Width + Player.MoveSpeed < GAME_WIDTH)
+		{
+			Player.X += Player.MoveSpeed;
+		}
+	}
+}
+
+
 
 LRESULT CALLBACK MY_WNDPROC(HWND hwnd, UINT mgs, WPARAM wp, LPARAM lp)
 {
